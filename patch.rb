@@ -31,8 +31,10 @@ pods = podproj.scan( /productReference = \w+ \/\* (\w+).framework \*\// ).map { 
 
 pods = (pods + Dir.glob( "../*" ).map { |dir| dir.sub( /..\//, '' ) }).uniq
 
-['debug', 'release'].each { |config|
-    patch( "../Target Support Files/Pods/Pods.#{config}.xcconfig" ) { |contents|
+require 'pathname'
+Pathname.glob('..//Target Support Files/**/Pods-*.xcconfig').each { |config|
+  puts config
+    patch( config ) { |contents|
         ldflags = contents.match( /OTHER_LDFLAGS = (?:-filelist \S+ )?(.*)/ ).captures[0]
         pods.each { |pod| ldflags.gsub!( / -framework "#{pod}"/, '' ) }
         contents.sub( /(OTHER_LDFLAGS = ).*/,
@@ -41,8 +43,9 @@ pods = (pods + Dir.glob( "../*" ).map { |dir| dir.sub( /..\//, '' ) }).uniq
 }
 
 # patch pod framework installer to  do nothing but remove embedded frameworks
+Pathname.glob("../Target Support Files/Pods-*/Pods-*-frameworks.sh").each { |frameworks_sh|
 
-patch( "../Target Support Files/Pods/Pods-frameworks.sh" ) { |contents|
+patch( frameworks_sh ) { |contents|
     contents = contents.sub( /install_framework\(\)\n/, <<BASH )
 install_framework()
 {
@@ -87,6 +90,7 @@ BASH
         contents = contents.gsub( /code_sign_if_enabled/, 'code_sign' )
     end
     contents
+}
 }
 
 # patch original project to place list of framework objects into a file for linking
